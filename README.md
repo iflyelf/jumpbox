@@ -1,4 +1,4 @@
-# Jumpbox 数据库跳板机
+# Jumpbox K8s 跳板机
 
 基于 [ubuntu-docker](https://github.com/iflyelf/ubuntu-docker) 模板扩展的 K8s 跳板机镜像 + Helm Chart。集成数据库客户端、备份工具、K8s 运维工具，以特权模式运行，用作集群内的运维跳板机与数据库备份节点。
 
