@@ -251,10 +251,17 @@ RUN set -eux && \
     dpkg -i /tmp/percona-release.deb && rm -f /tmp/percona-release.deb && \
     percona-release enable-only tools release && \
     percona-release setup ppg-${PG_MAJOR} || true && \
-    # --- Redis 客户端源 (redis.io 官方, 匹配 Redis 8.x) ---
-    wget --no-check-certificate -O /usr/share/keyrings/redis-archive-keyring.gpg https://packages.redis.io/gpg && \
+    # --- Redis 客户端源 (redis.io 官方) ---
+    # 注意: redis.io 的 gpg 是 ASCII armored 格式, 新版 apt 要求二进制, 需 gpg --dearmor 转换
+    # redis.io 源以 Debian/Ubuntu 稳定版 codename 命名, 开发版(如 resolute)可能无对应仓库,
+    # 通过 REDIS_CODENAME 回退到最近的 LTS codename (noble)
+    REDIS_CODENAME="$(lsb_release -cs)" && \
+    if ! curl -fsSL "https://packages.redis.io/deb/dists/${REDIS_CODENAME}/InRelease" >/dev/null 2>&1; then \
+        echo "Redis 源无 ${REDIS_CODENAME} 仓库, 回退到 noble" && REDIS_CODENAME=noble ; \
+    fi && \
+    curl -fsSL https://packages.redis.io/gpg | gpg --dearmor -o /usr/share/keyrings/redis-archive-keyring.gpg && \
     chmod 644 /usr/share/keyrings/redis-archive-keyring.gpg && \
-    echo "deb [signed-by=/usr/share/keyrings/redis-archive-keyring.gpg] https://packages.redis.io/deb $(lsb_release -cs) main" > /etc/apt/sources.list.d/redis.list && \
+    echo "deb [signed-by=/usr/share/keyrings/redis-archive-keyring.gpg] https://packages.redis.io/deb ${REDIS_CODENAME} main" > /etc/apt/sources.list.d/redis.list && \
     # --- 更新并安装客户端 ---
     apt-get update -qqy && \
     DEBIAN_FRONTEND=noninteractive apt-get install -qqy --no-install-recommends \
