@@ -1,0 +1,23 @@
+# Helm
+*.lock
+manifests/
+.helmignore
+
+# Git
+.git/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temp
+*.tmp
+*.bak
+*.orig

@@ -1,0 +1,84 @@
+{{- if .Values.rbac.create }}
+{{- if eq .Values.rbac.scope "cluster" }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "jumpbox.fullname" . }}
+  labels:
+    {{- include "jumpbox.labels" . | nindent 4 }}
+rules:
+  # 节点查看与操作 (cordon/uncordon/drain/label/taint)
+  - apiGroups: [""]
+    resources: ["nodes", "nodes/status", "nodes/proxy", "nodes/metrics"]
+    verbs: ["get", "list", "watch", "patch", "update"]
+  # Pod 查看与操作 (drain 需要驱逐 Pod)
+  - apiGroups: [""]
+    resources: ["pods", "pods/log", "pods/status", "pods/eviction"]
+    verbs: ["get", "list", "watch", "create", "delete"]
+  # 常见资源查看
+  - apiGroups: [""]
+    resources: ["services", "endpoints", "namespaces", "events", "configmaps", "secrets", "persistentvolumes", "persistentvolumeclaims"]
+    verbs: ["get", "list", "watch"]
+  # 工作负载查看
+  - apiGroups: ["apps"]
+    resources: ["deployments", "statefulsets", "daemonsets", "replicasets"]
+    verbs: ["get", "list", "watch"]
+  # 批处理任务查看
+  - apiGroups: ["batch"]
+    resources: ["jobs", "cronjobs"]
+    verbs: ["get", "list", "watch"]
+  # 指标查看
+  - apiGroups: ["metrics.k8s.io"]
+    resources: ["nodes", "pods"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "jumpbox.fullname" . }}
+  labels:
+    {{- include "jumpbox.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "jumpbox.fullname" . }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "jumpbox.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+{{- else }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "jumpbox.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "jumpbox.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "pods/log", "services", "endpoints", "configmaps", "secrets", "persistentvolumeclaims"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "statefulsets", "daemonsets", "replicasets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["batch"]
+    resources: ["jobs", "cronjobs"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "jumpbox.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "jumpbox.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "jumpbox.fullname" . }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "jumpbox.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+{{- end }}
+{{- end }}

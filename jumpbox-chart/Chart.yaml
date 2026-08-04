@@ -1,0 +1,23 @@
+apiVersion: v2
+name: jumpbox
+description: |
+  数据库跳板机 Helm Chart - 集成 MySQL/PostgreSQL/Redis 客户端及备份工具,
+  内置 kubectl/helm/helmfile/ansible, 支持节点操作、数据库连接与定时备份。
+type: application
+version: 1.0.0
+appVersion: "latest"
+keywords:
+  - jumpbox
+  - bastion
+  - database
+  - backup
+  - mysql
+  - postgresql
+  - redis
+  - kubectl
+home: https://github.com/iflyelf/jumpbox
+sources:
+  - https://github.com/iflyelf/jumpbox
+maintainers:
+  - name: iflyelf
+    url: https://www.xiaonuo.live

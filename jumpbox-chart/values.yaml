@@ -1,0 +1,237 @@
+# Default values for jumpbox.
+# 数据库跳板机配置文件
+
+# ==================== 基础配置 ====================
+nameOverride: ""
+fullnameOverride: ""
+
+# 副本数 (多副本高可用)
+replicaCount: 2
+
+image:
+  repository: iflyelf/jumpbox
+  tag: "latest"
+  pullPolicy: Always
+  # 私有仓库拉取密钥
+  pullSecrets: []
+
+# 命令 (保持容器常驻)
+command: []
+args: []
+
+# ==================== 资源限制 ====================
+resources:
+  requests:
+    cpu: 4
+    memory: 8Gi
+  limits:
+    cpu: 4
+    memory: 8Gi
+
+# ==================== 安全上下文 (特权跳板机) ====================
+# Pod 安全上下文
+securityContext:
+  runAsUser: 0
+  runAsGroup: 0
+  fsGroup: 0
+  runAsNonRoot: false
+
+# 容器安全上下文
+containerSecurityContext:
+  allowPrivilegeEscalation: true
+  privileged: true
+  runAsUser: 0
+  capabilities:
+    add:
+      - ALL
+    drop: []
+
+# ==================== 宿主机命名空间 ====================
+# 使用宿主机的进程间通信名称空间
+hostIPC: true
+# 使用宿主机的网络名称空间
+hostNetwork: true
+# 使用宿主机的进程名称空间
+hostPID: true
+# DNS 策略 (hostNetwork 时建议 ClusterFirstWithHostNet)
+dnsPolicy: ClusterFirstWithHostNet
+
+# ==================== 调度配置 ====================
+# 节点亲和性 + Pod 反亲和性
+affinity:
+  # 节点亲和性: 必须调度到具有 application/jumpbox=true 标签的节点
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: application/jumpbox
+              operator: In
+              values: ["true"]
+  # Pod 反亲和性: 多副本分散到不同节点
+  podAntiAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchExpressions:
+            - key: application/jumpbox
+              operator: In
+              values: ["true"]
+        topologyKey: kubernetes.io/hostname
+
+# 污点容忍
+tolerations:
+  - key: "CriticalAddonsOnly"
+    operator: "Exists"
+  - key: node-role.kubernetes.io/master
+    effect: NoSchedule
+  - key: node-role.kubernetes.io/control-plane
+    effect: NoSchedule
+
+# 节点选择器 (额外)
+nodeSelector: {}
+
+# ==================== 网络服务 ====================
+service:
+  type: ClusterIP
+  port: 22
+  targetPort: 22
+  portName: ssh
+  listenOnAllInterfaces: true
+
+# ==================== RBAC (kubectl 节点操作权限) ====================
+rbac:
+  # 是否创建 RBAC 资源
+  create: true
+  # 权限范围: cluster(集群级, 可操作节点) / namespace(命名空间级)
+  scope: cluster
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+# ==================== 宿主机目录挂载 ====================
+extraHostVolumeMounts:
+  # 备份数据目录 (读写)
+  - name: host-data
+    hostPath: /data
+    mountPath: /data
+    type: DirectoryOrCreate
+    readOnly: false
+  # 宿主机日志目录 (只读, 挂到 /host 前缀避免覆盖容器自身日志)
+  - name: host-logs
+    hostPath: /var/log
+    mountPath: /host/var/log
+    type: DirectoryOrCreate
+    readOnly: true
+
+# ==================== 本地持久化 (hostPath PVC) ====================
+persistence:
+  enabled: true
+  # 类型: hostPath(本地) / storageClass(动态供给)
+  type: hostPath
+  hostPath: /data
+  storageClass: ""
+  accessModes:
+    - ReadWriteOnce
+  size: 100Gi
+
+# ==================== 数据库连接凭证 (Secret 挂载) ====================
+# 凭证提供方式 (二选一, existingSecret 优先):
+#   1. [生产推荐] existingSecret: 引用预先创建的 Secret, values 中不出现明文密码
+#   2. [仅测试]   auth.password: 直接写明文, 由 Chart 生成 Secret
+# 校验规则: 数据库 enabled 时若两者都为空, helm 会直接报错拒绝渲染。
+databases:
+  mysql:
+    enabled: true
+    # 集群 Service 地址 (例: mysql-cluster-haproxy.database.svc.cluster.local)
+    host: ""
+    port: 3306
+    # [生产推荐] 引用已存在的 Secret 名称; 设置后忽略下方 auth.password, 不生成明文 Secret
+    existingSecret: ""
+    # existingSecret 中存放密码的 key
+    existingSecretPasswordKey: "mysql-password"
+    auth:
+      username: root
+      # [仅测试] 明文密码; 生产请留空并改用 existingSecret
+      password: ""
+    # 物理备份数据目录 (宿主机挂载路径, xtrabackup 使用)
+    datadir: /data/mysql/data
+  postgres:
+    enabled: true
+    host: ""
+    port: 5432
+    # [生产推荐] 引用已存在的 Secret
+    existingSecret: ""
+    existingSecretPasswordKey: "postgres-password"
+    auth:
+      username: postgres
+      # [仅测试] 明文密码; 生产请留空并改用 existingSecret
+      password: ""
+      database: postgres
+    # 物理备份配置 (pgbackrest)
+    datadir: /data/postgres/data
+    pgbackrestStanza: db
+  redis:
+    enabled: true
+    host: ""
+    port: 6379
+    # [生产推荐] 引用已存在的 Secret
+    existingSecret: ""
+    existingSecretPasswordKey: "redis-password"
+    auth:
+      # [仅测试] 明文密码; 生产请留空并改用 existingSecret
+      password: ""
+    # 物理备份数据目录
+    datadir: /data/redis/data
+
+# ==================== 定时备份 (CronJob) ====================
+backup:
+  enabled: true
+  # 备份模式: logical(逻辑) / physical(物理) / both(两者)
+  mode: logical
+  # 备份计划 (cron 表达式, Asia/Shanghai 时区)
+  schedule: "0 2 * * *"
+  # 保留天数
+  retentionDays: 7
+  # 备份根目录
+  targetPath: /data/backups
+  # 时区
+  timeZone: "Asia/Shanghai"
+  # 备份任务资源限制
+  resources:
+    requests:
+      cpu: "1"
+      memory: 2Gi
+    limits:
+      cpu: "2"
+      memory: 4Gi
+  # 任务历史保留
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  # 任务失败重试次数
+  backoffLimit: 2
+  # 是否禁止并发执行 (Forbid/Allow/Replace)
+  concurrencyPolicy: Forbid
+
+# ==================== 额外配置 ====================
+# 额外的环境变量
+extraEnvVars: []
+#  - name: FOO
+#    value: bar
+
+# 额外的卷
+extraVolumes: []
+# 额外的卷挂载
+extraVolumeMounts: []
+
+# Pod 注解
+podAnnotations: {}
+# Pod 标签 (含节点亲和性所需标签)
+podLabels: {}
+
+# 优雅停止时间
+terminationGracePeriodSeconds: 30
+
+# 更新策略
+updateStrategy:
+  type: RollingUpdate

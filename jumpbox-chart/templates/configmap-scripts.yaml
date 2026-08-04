@@ -1,0 +1,25 @@
+{{- if .Values.backup.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "jumpbox.scriptsConfigMapName" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "jumpbox.labels" . | nindent 4 }}
+data:
+  run-backup.sh: |
+    #!/bin/bash
+    #=================================================
+    # CronJob 备份入口 (由 Helm Chart 生成)
+    # 说明: 从 Secret/env 读取连接信息, 调用镜像内置备份脚本
+    #=================================================
+    set -uo pipefail
+    export TZ={{ .Values.backup.timeZone | default "Asia/Shanghai" }}
+
+    log() { echo "[$(date +'%Y-%m-%d %H:%M:%S')] $*"; }
+
+    log "备份任务启动 (模式: ${BACKUP_MODE:-logical})"
+
+    # 调用镜像内置统一备份脚本
+    exec /opt/jumpbox/scripts/backup-all.sh
+{{- end }}

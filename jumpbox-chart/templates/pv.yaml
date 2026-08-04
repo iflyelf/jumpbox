@@ -1,0 +1,25 @@
+{{- if and .Values.persistence.enabled (eq .Values.persistence.type "hostPath") }}
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: {{ include "jumpbox.fullname" . }}-pv
+  labels:
+    {{- include "jumpbox.labels" . | nindent 4 }}
+spec:
+  capacity:
+    storage: {{ .Values.persistence.size }}
+  accessModes:
+    {{- toYaml .Values.persistence.accessModes | nindent 4 }}
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: ""
+  hostPath:
+    path: {{ .Values.persistence.hostPath }}
+    type: DirectoryOrCreate
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: application/jumpbox
+              operator: In
+              values: ["true"]
+{{- end }}

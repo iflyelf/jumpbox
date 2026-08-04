@@ -1,0 +1,43 @@
+════════════════════════════════════════════════════════════
+  Jumpbox 数据库跳板机部署成功!
+════════════════════════════════════════════════════════════
+
+发布名称: {{ .Release.Name }}
+命名空间: {{ .Release.Namespace }}
+副本数:   {{ .Values.replicaCount }}
+
+【1】查看 Pod 状态:
+  kubectl get pods -n {{ .Release.Namespace }} -l app.kubernetes.io/instance={{ .Release.Name }}
+
+【2】进入跳板机 (交互式 shell):
+  kubectl exec -it -n {{ .Release.Namespace }} {{ include "jumpbox.fullname" . }}-0 -- zsh
+
+【3】连接数据库:
+  db-connect mysql       # 连接 MySQL
+  db-connect postgres    # 连接 PostgreSQL
+  db-connect redis       # 连接 Redis
+  db-connect info        # 查看连接信息
+
+【4】手动执行备份:
+  backup-all             # 全部备份
+  backup-mysql           # 仅 MySQL
+  backup-postgres        # 仅 PostgreSQL
+  backup-redis           # 仅 Redis
+
+【5】kubectl 节点操作 (已配置 RBAC):
+  kubectl get nodes
+  kubectl describe node <节点名>
+
+{{- if .Values.backup.enabled }}
+
+【6】定时备份已启用:
+  计划: {{ .Values.backup.schedule }} ({{ .Values.backup.timeZone }})
+  模式: {{ .Values.backup.mode }}
+  保留: {{ .Values.backup.retentionDays }} 天
+  路径: {{ .Values.backup.targetPath }}
+  查看: kubectl get cronjob -n {{ .Release.Namespace }} {{ include "jumpbox.fullname" . }}-backup
+{{- end }}
+
+⚠️  安全提示: 此 Pod 以特权模式运行 (privileged + hostNetwork + hostPID),
+    拥有宿主机完全访问权限, 请妥善控制访问权限。
+════════════════════════════════════════════════════════════

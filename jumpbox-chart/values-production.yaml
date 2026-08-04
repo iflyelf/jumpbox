@@ -1,0 +1,78 @@
+# ==================== 生产环境配置示例 (existingSecret 方式) ====================
+# 该示例不含任何明文密码, 凭证全部引用预先创建的 Secret。
+#
+# 部署前先创建凭证 Secret:
+#   kubectl create secret generic jumpbox-db-secret -n jumpbox \
+#     --from-literal=mysql-password='真实MySQL密码' \
+#     --from-literal=postgres-password='真实PG密码' \
+#     --from-literal=redis-password='真实Redis密码'
+#
+# 然后部署:
+#   helm install jumpbox ./jumpbox-chart -n jumpbox --create-namespace -f values-production.yaml
+
+replicaCount: 2
+
+image:
+  repository: iflyelf/jumpbox
+  tag: "latest"
+
+# ==================== 数据库连接 (引用 existingSecret, 无明文) ====================
+databases:
+  mysql:
+    enabled: true
+    host: "mysql-cluster-haproxy.database.svc.cluster.local"
+    port: 3306
+    # 引用预创建的 Secret, 不在此处写明文密码
+    existingSecret: "jumpbox-db-secret"
+    existingSecretPasswordKey: "mysql-password"
+    auth:
+      username: root
+      # password 留空 (使用 existingSecret)
+    datadir: /data/mysql/data
+  postgres:
+    enabled: true
+    host: "pg-cluster-primary.database.svc.cluster.local"
+    port: 5432
+    existingSecret: "jumpbox-db-secret"
+    existingSecretPasswordKey: "postgres-password"
+    auth:
+      username: postgres
+      database: postgres
+    datadir: /data/postgres/data
+    pgbackrestStanza: db
+  redis:
+    enabled: true
+    host: "redis-cluster.database.svc.cluster.local"
+    port: 6379
+    existingSecret: "jumpbox-db-secret"
+    existingSecretPasswordKey: "redis-password"
+    auth: {}
+    datadir: /data/redis/data
+
+# ==================== 定时备份 ====================
+backup:
+  enabled: true
+  mode: logical
+  schedule: "0 2 * * *"
+  retentionDays: 7
+  targetPath: /data/backups
+  timeZone: "Asia/Shanghai"
+
+# ==================== 宿主机挂载 ====================
+extraHostVolumeMounts:
+  - name: host-data
+    hostPath: /data
+    mountPath: /data
+    type: DirectoryOrCreate
+    readOnly: false
+  - name: host-logs
+    hostPath: /var/log
+    mountPath: /host/var/log
+    type: DirectoryOrCreate
+    readOnly: true
+
+persistence:
+  enabled: true
+  type: hostPath
+  hostPath: /data
+  size: 100Gi
