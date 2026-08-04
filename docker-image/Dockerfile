@@ -246,10 +246,13 @@ RUN set -eux && \
     install -d /usr/share/postgresql-common/pgdg && \
     wget --no-check-certificate -O /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc && \
     echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list && \
-    # --- Percona 源 (MySQL 客户端 + xtrabackup 8.4 + pgbackrest) ---
+    # --- Percona 源 ---
+    # ps-84:  percona-server-client (MySQL 8.4 客户端)
+    # ppg-18: postgresql-client-18
+    # 注意: setup 命令会同时激活对应的 tools 仓库 (供 xtrabackup / pgbackrest 使用)
     wget --no-check-certificate https://repo.percona.com/apt/percona-release_latest.$(lsb_release -sc)_all.deb -O /tmp/percona-release.deb && \
     dpkg -i /tmp/percona-release.deb && rm -f /tmp/percona-release.deb && \
-    percona-release enable-only tools release && \
+    percona-release setup ps-84 && \
     percona-release setup ppg-${PG_MAJOR} || true && \
     # --- Redis 客户端源 (redis.io 官方) ---
     # 注意: redis.io 的 gpg 是 ASCII armored 格式, 新版 apt 要求二进制, 需 gpg --dearmor 转换
