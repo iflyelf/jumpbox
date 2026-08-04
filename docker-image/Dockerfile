@@ -242,31 +242,27 @@ ENV PATH=$PATH:/usr/lib/postgresql/$PG_MAJOR/bin
 RUN set -eux && \
     apt-get update -qqy && \
     DEBIAN_FRONTEND=noninteractive apt-get install -qqy --no-install-recommends lsb-release gnupg2 ca-certificates wget curl && \
-    # --- PostgreSQL 官方 PGDG 源 (匹配 PG 18) ---
+    # --- 修复 codename 问题 ---
+    # resolute 是未来开发版, 第三方源(Percona/PGDG/Redis)只支持 LTS(noble/jammy), 统一回退到 noble
+    STABLE_CODENAME="noble" && \
+    # --- PostgreSQL 官方 PGDG 源 (PG 18) ---
     install -d /usr/share/postgresql-common/pgdg && \
     wget --no-check-certificate -O /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc && \
-    echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list && \
-    # --- Percona 源 ---
-    # pdps-8.0: Percona Distribution for MySQL 8.0 (提供 percona-server-client)
-    # ppg-18:   Percona Distribution for PostgreSQL 18
-    # tools:    备份工具 (percona-xtrabackup-80 / percona-pgbackrest / mydumper)
-    # 注意: Percona 8.4 尚无独立仓库, 用 8.0 客户端兼容
-    wget --no-check-certificate https://repo.percona.com/apt/percona-release_latest.$(lsb_release -sc)_all.deb -O /tmp/percona-release.deb && \
+    echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt ${STABLE_CODENAME}-pgdg main" > /etc/apt/sources.list.d/pgdg.list && \
+    # --- Percona 源 (pdps-8.0 / ppg-18 / tools) ---
+    wget --no-check-certificate https://repo.percona.com/apt/percona-release_latest.generic_all.deb -O /tmp/percona-release.deb && \
     dpkg -i /tmp/percona-release.deb && rm -f /tmp/percona-release.deb && \
+    # 手动改写源列表文件的 codename 为 noble (percona-release 会读 lsb_release 写入 resolute)
+    sed -i "s/$(lsb_release -cs)/${STABLE_CODENAME}/g" /etc/apt/sources.list.d/percona-*.list 2>/dev/null || true && \
     percona-release enable pdps-8.0 release && \
     percona-release enable tools release && \
     percona-release enable ppg-${PG_MAJOR} release || true && \
+    sed -i "s/$(lsb_release -cs)/${STABLE_CODENAME}/g" /etc/apt/sources.list.d/percona-*.list && \
     # --- Redis 客户端源 (redis.io 官方) ---
-    # 注意: redis.io 的 gpg 是 ASCII armored 格式, 新版 apt 要求二进制, 需 gpg --dearmor 转换
-    # redis.io 源以 Debian/Ubuntu 稳定版 codename 命名, 开发版(如 resolute)可能无对应仓库,
-    # 通过 REDIS_CODENAME 回退到最近的 LTS codename (noble)
-    REDIS_CODENAME="$(lsb_release -cs)" && \
-    if ! curl -fsSL "https://packages.redis.io/deb/dists/${REDIS_CODENAME}/InRelease" >/dev/null 2>&1; then \
-        echo "Redis 源无 ${REDIS_CODENAME} 仓库, 回退到 noble" && REDIS_CODENAME=noble ; \
-    fi && \
+    # 同样强制使用 noble codename
     curl -fsSL https://packages.redis.io/gpg | gpg --dearmor -o /usr/share/keyrings/redis-archive-keyring.gpg && \
     chmod 644 /usr/share/keyrings/redis-archive-keyring.gpg && \
-    echo "deb [signed-by=/usr/share/keyrings/redis-archive-keyring.gpg] https://packages.redis.io/deb ${REDIS_CODENAME} main" > /etc/apt/sources.list.d/redis.list && \
+    echo "deb [signed-by=/usr/share/keyrings/redis-archive-keyring.gpg] https://packages.redis.io/deb ${STABLE_CODENAME} main" > /etc/apt/sources.list.d/redis.list && \
     # --- 更新并安装客户端 ---
     apt-get update -qqy && \
     DEBIAN_FRONTEND=noninteractive apt-get install -qqy --no-install-recommends \
