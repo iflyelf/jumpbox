@@ -272,11 +272,13 @@ RUN set -eux && \
     rm -rf /var/lib/apt/lists/* /tmp/*
 
 # ***** 安装数据库备份工具 (xtrabackup / pgbackrest / mydumper) *****
+# 注意: percona-pgbackrest(noble) 强依赖旧版 libxml2, 与 resolute 系统冲突,
+# 改用 PGDG 源的 pgbackrest (与 postgresql-client 同源, 兼容 resolute)
 RUN set -eux && \
     apt-get update -qqy && \
     DEBIAN_FRONTEND=noninteractive apt-get install -qqy --no-install-recommends \
         percona-xtrabackup-${MYSQL_PXB_MAJOR} \
-        percona-pgbackrest \
+        pgbackrest \
         mydumper && \
     rm -rf /var/lib/apt/lists/* /tmp/* && \
     # 验证备份工具
