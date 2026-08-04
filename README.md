@@ -10,7 +10,7 @@
   - 物理备份：`xtrabackup`（MySQL 8.4）、`pgbackrest`（PG）
 - **K8s 工具**：`kubectl`、`helm`、`helmfile`（构建时通过 GitHub API 拉取最新稳定版）
 - **运维工具**：`ansible`、`sshpass` 及完整的 ubuntu-docker 基础工具链
-- **节点操作**：内置 RBAC，`kubectl` 可查看/操作节点（cordon/drain/label/taint）
+- **集群运维**：内置 RBAC（ClusterRole），`kubectl` 可跨**所有命名空间**操作节点与工作负载（cordon/drain/label/taint、Pod exec/删除、扩缩容等），可选 `clusterAdmin` 完全管理员模式
 - **定时备份**：CronJob 定时逻辑/物理备份，自动清理过期备份
 - **宿主机挂载**：挂载宿主机 `/data`（备份数据）与 `/var/log`（只读日志查看）
 
@@ -87,10 +87,14 @@ helm install jumpbox ./jumpbox-chart -n jumpbox --create-namespace -f my-values.
 
 ## 安全说明
 
-本 Chart 默认以**最高权限**运行：`privileged: true`、`hostNetwork`、`hostPID`、`hostIPC`、`capabilities: ALL`、`runAsUser: 0`。这是跳板机场景的预期配置，但会绕过容器隔离。请务必：
+本 Chart 默认以**最高权限**运行：`privileged: true`、`hostNetwork`、`hostPID`、`hostIPC`、`capabilities: ALL`、`runAsUser: 0`。这是跳板机场景的预期配置，但会绕过容器隔离。
 
-- 限制该命名空间的访问权限（RBAC）
+**RBAC 权限**：默认 ClusterRole 授予**跨所有命名空间**的节点、Pod、工作负载完整操作权限（细粒度规则）。可通过 `rbac.clusterAdmin: true` 启用完全管理员模式（等价 cluster-admin，所有资源所有操作）。
+
+**安全建议**：
+- 限制跳板机 Pod 所在命名空间（jumpbox）的访问权限，仅授予运维人员
 - 仅在受信任的运维节点部署
+- 生产环境必须用 `existingSecret` 管理数据库凭证（见下方）
 
 ### 凭证管理
 

@@ -7,30 +7,94 @@ metadata:
   labels:
     {{- include "jumpbox.labels" . | nindent 4 }}
 rules:
-  # 节点查看与操作 (cordon/uncordon/drain/label/taint)
+{{- if .Values.rbac.clusterAdmin }}
+  # 集群管理员模式: 完全权限, 覆盖所有命名空间的所有资源
+  - apiGroups: ["*"]
+    resources: ["*"]
+    verbs: ["*"]
+  - nonResourceURLs: ["*"]
+    verbs: ["*"]
+{{- else }}
+  # ========== 核心资源组 ==========
+  # 节点完整操作 (cordon/uncordon/drain/label/taint/delete)
   - apiGroups: [""]
     resources: ["nodes", "nodes/status", "nodes/proxy", "nodes/metrics"]
-    verbs: ["get", "list", "watch", "patch", "update"]
-  # Pod 查看与操作 (drain 需要驱逐 Pod)
+    verbs: ["*"]
+  
+  # Pod 完整操作 (所有命名空间)
   - apiGroups: [""]
-    resources: ["pods", "pods/log", "pods/status", "pods/eviction"]
-    verbs: ["get", "list", "watch", "create", "delete"]
-  # 常见资源查看
+    resources: ["pods", "pods/log", "pods/status", "pods/eviction", "pods/exec", "pods/portforward"]
+    verbs: ["*"]
+  
+  # 核心资源完整操作
   - apiGroups: [""]
-    resources: ["services", "endpoints", "namespaces", "events", "configmaps", "secrets", "persistentvolumes", "persistentvolumeclaims"]
-    verbs: ["get", "list", "watch"]
-  # 工作负载查看
+    resources: 
+      - "services"
+      - "endpoints"
+      - "namespaces"
+      - "events"
+      - "configmaps"
+      - "secrets"
+      - "persistentvolumes"
+      - "persistentvolumeclaims"
+      - "serviceaccounts"
+      - "resourcequotas"
+      - "limitranges"
+      - "replicationcontrollers"
+    verbs: ["*"]
+  
+  # ========== 工作负载 ==========
   - apiGroups: ["apps"]
-    resources: ["deployments", "statefulsets", "daemonsets", "replicasets"]
-    verbs: ["get", "list", "watch"]
-  # 批处理任务查看
+    resources: 
+      - "deployments"
+      - "deployments/scale"
+      - "statefulsets"
+      - "statefulsets/scale"
+      - "daemonsets"
+      - "replicasets"
+      - "replicasets/scale"
+    verbs: ["*"]
+  
+  # ========== 批处理任务 ==========
   - apiGroups: ["batch"]
     resources: ["jobs", "cronjobs"]
+    verbs: ["*"]
+  
+  # ========== 网络 ==========
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingresses", "networkpolicies", "ingressclasses"]
+    verbs: ["*"]
+  
+  # ========== 存储 ==========
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["storageclasses", "volumeattachments", "csidrivers", "csinodes", "csistoragecapacities"]
+    verbs: ["*"]
+  
+  # ========== RBAC (查看权限，避免提权风险) ==========
+  - apiGroups: ["rbac.authorization.k8s.io"]
+    resources: ["roles", "rolebindings", "clusterroles", "clusterrolebindings"]
     verbs: ["get", "list", "watch"]
-  # 指标查看
+  
+  # ========== 自动扩缩容 ==========
+  - apiGroups: ["autoscaling"]
+    resources: ["horizontalpodautoscalers"]
+    verbs: ["*"]
+  
+  # ========== 策略 ==========
+  - apiGroups: ["policy"]
+    resources: ["poddisruptionbudgets", "podsecuritypolicies"]
+    verbs: ["*"]
+  
+  # ========== 指标 ==========
   - apiGroups: ["metrics.k8s.io"]
     resources: ["nodes", "pods"]
     verbs: ["get", "list"]
+  
+  # ========== 自定义资源 (根据实际需要) ==========
+  - apiGroups: ["*"]
+    resources: ["*"]
+    verbs: ["get", "list", "watch"]
+{{- end }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding

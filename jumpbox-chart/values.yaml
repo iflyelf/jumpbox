@@ -97,12 +97,15 @@ service:
   portName: ssh
   listenOnAllInterfaces: true
 
-# ==================== RBAC (kubectl 节点操作权限) ====================
+# ==================== RBAC (kubectl 集群运维权限) ====================
 rbac:
   # 是否创建 RBAC 资源
   create: true
-  # 权限范围: cluster(集群级, 可操作节点) / namespace(命名空间级)
+  # 权限范围: cluster(集群级, 可跨所有命名空间操作节点/工作负载) / namespace(仅当前命名空间)
   scope: cluster
+  # 集群管理员模式: true 时授予 cluster-admin 等价的完全权限 (所有资源所有操作,
+  # 覆盖所有命名空间)。跳板机运维场景可开启; 关闭时使用下方细粒度规则。
+  clusterAdmin: false
 
 serviceAccount:
   create: true
