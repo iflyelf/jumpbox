@@ -247,13 +247,15 @@ RUN set -eux && \
     wget --no-check-certificate -O /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc && \
     echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list && \
     # --- Percona 源 ---
-    # ps-84:  percona-server-client (MySQL 8.4 客户端)
-    # ppg-18: postgresql-client-18
-    # 注意: setup 命令会同时激活对应的 tools 仓库 (供 xtrabackup / pgbackrest 使用)
+    # pdps-8.0: Percona Distribution for MySQL 8.0 (提供 percona-server-client)
+    # ppg-18:   Percona Distribution for PostgreSQL 18
+    # tools:    备份工具 (percona-xtrabackup-80 / percona-pgbackrest / mydumper)
+    # 注意: Percona 8.4 尚无独立仓库, 用 8.0 客户端兼容
     wget --no-check-certificate https://repo.percona.com/apt/percona-release_latest.$(lsb_release -sc)_all.deb -O /tmp/percona-release.deb && \
     dpkg -i /tmp/percona-release.deb && rm -f /tmp/percona-release.deb && \
-    percona-release setup ps-84 && \
-    percona-release setup ppg-${PG_MAJOR} || true && \
+    percona-release enable pdps-8.0 release && \
+    percona-release enable tools release && \
+    percona-release enable ppg-${PG_MAJOR} release || true && \
     # --- Redis 客户端源 (redis.io 官方) ---
     # 注意: redis.io 的 gpg 是 ASCII armored 格式, 新版 apt 要求二进制, 需 gpg --dearmor 转换
     # redis.io 源以 Debian/Ubuntu 稳定版 codename 命名, 开发版(如 resolute)可能无对应仓库,
