@@ -91,6 +91,14 @@ backup_logical() {
 backup_physical() {
     log "开始 PostgreSQL 物理备份 (pgbackrest)..."
     
+    # 检查 pgbackrest 是否可用
+    if ! command -v pgbackrest >/dev/null 2>&1; then
+        log "错误: pgbackrest 未安装。物理备份需要 pgbackrest 工具。"
+        log "跳板机镜像默认不含 pgbackrest (依赖冲突+远程场景不适用)。"
+        log "建议: 使用 BACKUP_MODE=logical (pg_dump 逻辑备份) 或在容器内手动安装 pgbackrest。"
+        return 1
+    fi
+    
     # 检查 pgbackrest 配置
     if [ ! -f /etc/pgbackrest/pgbackrest.conf ] && [ ! -f /etc/pgbackrest.conf ]; then
         log "警告: 未找到 pgbackrest 配置, 尝试使用环境变量配置..."
