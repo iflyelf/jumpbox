@@ -243,20 +243,19 @@ RUN set -eux && \
     apt-get update -qqy && \
     DEBIAN_FRONTEND=noninteractive apt-get install -qqy --no-install-recommends lsb-release gnupg2 ca-certificates wget curl && \
     # --- 修复 codename 问题 ---
-    # resolute 是未来开发版, 第三方源(Percona/PGDG/Redis)只支持 LTS(noble/jammy), 统一回退到 noble
+    # Percona ppg/tools 仓库已支持 resolute, 直接使用无需回退 noble
+    # PGDG/Redis 需回退到 noble (无 resolute 仓库)
     STABLE_CODENAME="noble" && \
     # --- PostgreSQL 官方 PGDG 源 (PG 18) ---
     install -d /usr/share/postgresql-common/pgdg && \
     wget --no-check-certificate -O /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc && \
     echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt ${STABLE_CODENAME}-pgdg main" > /etc/apt/sources.list.d/pgdg.list && \
-    # --- Percona 源 (tools 提供 xtrabackup, 支持 amd64/arm64) ---
-    # 注意: MySQL 客户端改用 Ubuntu 自带 mysql-client-core (Percona pdps 仓库无 arm64)
+    # --- Percona 源 (tools / ppg-18, 使用 setup 而非 enable) ---
+    # 注意: percona-release setup 会正确配置所有依赖, 保持 resolute codename
     wget --no-check-certificate https://repo.percona.com/apt/percona-release_latest.generic_all.deb -O /tmp/percona-release.deb && \
     dpkg -i /tmp/percona-release.deb && rm -f /tmp/percona-release.deb && \
-    # 手动改写源列表文件的 codename 为 noble (percona-release 会读 lsb_release 写入 resolute)
-    sed -i "s/$(lsb_release -cs)/${STABLE_CODENAME}/g" /etc/apt/sources.list.d/percona-*.list 2>/dev/null || true && \
+    percona-release setup ppg-${PG_MAJOR} && \
     percona-release enable tools release && \
-    sed -i "s/$(lsb_release -cs)/${STABLE_CODENAME}/g" /etc/apt/sources.list.d/percona-*.list && \
     # --- Redis 客户端源 (redis.io 官方) ---
     # 同样强制使用 noble codename
     curl -fsSL https://packages.redis.io/gpg | gpg --dearmor -o /usr/share/keyrings/redis-archive-keyring.gpg && \
@@ -270,21 +269,22 @@ RUN set -eux && \
         redis-tools && \
     rm -rf /var/lib/apt/lists/* /tmp/*
 
-# ***** 安装数据库备份工具 (xtrabackup / mydumper) *****
+# ***** 安装数据库备份工具 (xtrabackup / pgbackrest / mydumper) *****
 # 说明:
 # - MySQL 物理备份: percona-xtrabackup-84 (Percona tools 源, 支持 amd64/arm64)
 # - MySQL 逻辑备份: mydumper (Ubuntu universe, 并行 dump)
-# - PostgreSQL 备份: 使用 postgresql-client-18 自带的 pg_dump/pg_dumpall (逻辑备份)
-#   注: pgbackrest 在 resolute+PGDG 混合环境存在 libxml2/postgresql-common 依赖冲突,
-#       且跳板机远程连接场景无法用物理备份(需访问 PG 数据目录), 故不安装
+# - PostgreSQL 物理备份: percona-pgbackrest (Percona ppg-18 resolute 源, 依赖 libxml2-16 兼容)
+# - PostgreSQL 逻辑备份: pg_dump/pg_dumpall (postgresql-client-18 自带)
 RUN set -eux && \
     apt-get update -qqy && \
     DEBIAN_FRONTEND=noninteractive apt-get install -qqy --no-install-recommends \
         percona-xtrabackup-${MYSQL_PXB_MAJOR} \
+        percona-pgbackrest \
         mydumper && \
     rm -rf /var/lib/apt/lists/* /tmp/* && \
     # 验证备份工具
     xtrabackup --version && \
+    pgbackrest version && \
     mydumper --version
 
 # ***** 安装 K8s 工具 (kubectl / helm / helmfile, GitHub API 获取最新稳定版) *****
