@@ -249,14 +249,13 @@ RUN set -eux && \
     install -d /usr/share/postgresql-common/pgdg && \
     wget --no-check-certificate -O /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc && \
     echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt ${STABLE_CODENAME}-pgdg main" > /etc/apt/sources.list.d/pgdg.list && \
-    # --- Percona 源 (pdps-8.0 / ppg-18 / tools) ---
+    # --- Percona 源 (tools 提供 xtrabackup, 支持 amd64/arm64) ---
+    # 注意: MySQL 客户端改用 Ubuntu 自带 mysql-client-core (Percona pdps 仓库无 arm64)
     wget --no-check-certificate https://repo.percona.com/apt/percona-release_latest.generic_all.deb -O /tmp/percona-release.deb && \
     dpkg -i /tmp/percona-release.deb && rm -f /tmp/percona-release.deb && \
     # 手动改写源列表文件的 codename 为 noble (percona-release 会读 lsb_release 写入 resolute)
     sed -i "s/$(lsb_release -cs)/${STABLE_CODENAME}/g" /etc/apt/sources.list.d/percona-*.list 2>/dev/null || true && \
-    percona-release enable pdps-8.0 release && \
     percona-release enable tools release && \
-    percona-release enable ppg-${PG_MAJOR} release || true && \
     sed -i "s/$(lsb_release -cs)/${STABLE_CODENAME}/g" /etc/apt/sources.list.d/percona-*.list && \
     # --- Redis 客户端源 (redis.io 官方) ---
     # 同样强制使用 noble codename
@@ -266,7 +265,7 @@ RUN set -eux && \
     # --- 更新并安装客户端 ---
     apt-get update -qqy && \
     DEBIAN_FRONTEND=noninteractive apt-get install -qqy --no-install-recommends \
-        percona-server-client \
+        mysql-client-core \
         postgresql-client-${PG_MAJOR} \
         redis-tools && \
     rm -rf /var/lib/apt/lists/* /tmp/*
