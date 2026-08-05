@@ -242,20 +242,25 @@ ENV PATH=$PATH:/usr/lib/postgresql/$PG_MAJOR/bin
 RUN set -eux && \
     apt-get update -qqy && \
     DEBIAN_FRONTEND=noninteractive apt-get install -qqy --no-install-recommends lsb-release gnupg2 ca-certificates wget curl && \
-    # --- 修复 codename 问题 ---
-    # Percona ppg/tools 仓库已支持 resolute, 直接使用无需回退 noble
-    # PGDG/Redis 需回退到 noble (无 resolute 仓库)
+    # --- 修复 codename 问题 (混合策略) ---
+    # - PGDG/Redis: noble (无 resolute)
+    # - Percona ppg-18: resolute (percona-pgbackrest 依赖 libxml2-16)
+    # - Percona tools: noble (resolute 仓库为空, 无 xtrabackup)
     STABLE_CODENAME="noble" && \
     # --- PostgreSQL 官方 PGDG 源 (PG 18) ---
     install -d /usr/share/postgresql-common/pgdg && \
     wget --no-check-certificate -O /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc && \
     echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt ${STABLE_CODENAME}-pgdg main" > /etc/apt/sources.list.d/pgdg.list && \
-    # --- Percona 源 (tools / ppg-18, 使用 setup 而非 enable) ---
-    # 注意: percona-release setup 会正确配置所有依赖, 保持 resolute codename
+    # --- Percona 源 (ppg resolute / tools noble) ---
     wget --no-check-certificate https://repo.percona.com/apt/percona-release_latest.generic_all.deb -O /tmp/percona-release.deb && \
     dpkg -i /tmp/percona-release.deb && rm -f /tmp/percona-release.deb && \
+    # 先 setup ppg (保持 resolute, 供 percona-pgbackrest 使用)
     percona-release setup ppg-${PG_MAJOR} && \
+    # 再启用 tools 并改为 noble (供 xtrabackup 使用, resolute 的 tools 仓库为空)
     percona-release enable tools release && \
+    for f in /etc/apt/sources.list.d/percona-tools*.list; do \
+        [ -f "$f" ] && sed -i "s/$(lsb_release -cs)/${STABLE_CODENAME}/g" "$f" ; \
+    done && \
     # --- Redis 客户端源 (redis.io 官方) ---
     # 同样强制使用 noble codename
     curl -fsSL https://packages.redis.io/gpg | gpg --dearmor -o /usr/share/keyrings/redis-archive-keyring.gpg && \
