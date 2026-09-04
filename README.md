@@ -40,7 +40,6 @@ jumpbox/
         ├── rbac.yaml              # 节点操作权限
         ├── secret.yaml            # 数据库凭证
         ├── configmap-scripts.yaml # 备份脚本入口
-        ├── pv.yaml                # hostPath 本地 PV
         ├── cronjob-backup.yaml    # 定时备份
         └── NOTES.txt
 ```
@@ -72,17 +71,17 @@ docker build -t iflyelf/jumpbox:latest .
 
 ## 快速部署
 
-详见 [INSTALL.md](INSTALL.md)。
+详见 [INSTALL.md](jumpbox-chart/INSTALL.md)。以下命令均在**仓库根目录**（含 `jumpbox-chart/` 的目录）执行。
 
 ```bash
 # 1. 给跳板机节点打标签
 kubectl label node <node-name> application/jumpbox=true
 
-# 2. 复制并修改配置
-cp jumpbox-chart/values-custom.yaml my-values.yaml
+# 2. 复制并修改配置（生成在 jumpbox-chart/ 内）
+cp jumpbox-chart/values-custom.yaml jumpbox-chart/my-values.yaml
 
 # 3. 部署
-helm install jumpbox ./jumpbox-chart -n jumpbox --create-namespace -f my-values.yaml
+helm install jumpbox ./jumpbox-chart -n jumpbox --create-namespace -f ./jumpbox-chart/my-values.yaml
 ```
 
 ## 安全说明

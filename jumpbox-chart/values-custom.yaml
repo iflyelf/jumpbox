@@ -60,10 +60,3 @@ extraHostVolumeMounts:
     mountPath: /host/var/log
     type: DirectoryOrCreate
     readOnly: true
-
-# ==================== 持久化 ====================
-persistence:
-  enabled: true
-  type: hostPath
-  hostPath: /data
-  size: 100Gi

@@ -26,11 +26,15 @@ kubectl get nodes -l application/jumpbox=true
 
 ## 步骤 2：准备配置
 
+> 以下所有命令均在**仓库根目录**（含 `jumpbox-chart/` 的目录）执行。
+
+配置文件放在 `jumpbox-chart/` 内：
+
 ```bash
-cp jumpbox-chart/values-custom.yaml my-values.yaml
+cp jumpbox-chart/values-custom.yaml jumpbox-chart/my-values.yaml
 ```
 
-编辑 `my-values.yaml`，填入实际数据库地址与凭证：
+编辑 `jumpbox-chart/my-values.yaml`，填入实际数据库地址与凭证：
 
 ```yaml
 databases:
@@ -81,7 +85,7 @@ kubectl create secret generic jumpbox-db-secret -n jumpbox \
 
 # 2. 部署时引用（values 中不含任何明文）
 helm install jumpbox ./jumpbox-chart -n jumpbox --create-namespace \
-  -f jumpbox-chart/values-production.yaml
+  -f ./jumpbox-chart/values-production.yaml
 ```
 
 values 中的引用写法：
@@ -105,13 +109,13 @@ databases:
 ```bash
 # 校验渲染
 helm lint ./jumpbox-chart
-helm template jumpbox ./jumpbox-chart -n jumpbox -f my-values.yaml
+helm template jumpbox ./jumpbox-chart -n jumpbox -f ./jumpbox-chart/my-values.yaml
 
 # 安装
-helm install jumpbox ./jumpbox-chart -n jumpbox --create-namespace -f my-values.yaml
+helm install jumpbox ./jumpbox-chart -n jumpbox --create-namespace -f ./jumpbox-chart/my-values.yaml
 
 # 升级
-helm upgrade jumpbox ./jumpbox-chart -n jumpbox -f my-values.yaml
+helm upgrade jumpbox ./jumpbox-chart -n jumpbox -f ./jumpbox-chart/my-values.yaml
 
 # 卸载
 helm uninstall jumpbox -n jumpbox

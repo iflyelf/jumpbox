@@ -127,17 +127,6 @@ extraHostVolumeMounts:
     type: DirectoryOrCreate
     readOnly: true
 
-# ==================== 本地持久化 (hostPath PVC) ====================
-persistence:
-  enabled: true
-  # 类型: hostPath(本地) / storageClass(动态供给)
-  type: hostPath
-  hostPath: /data
-  storageClass: ""
-  accessModes:
-    - ReadWriteOnce
-  size: 100Gi
-
 # ==================== 数据库连接凭证 (Secret 挂载) ====================
 # 凭证提供方式 (二选一, existingSecret 优先):
 #   1. [生产推荐] existingSecret: 引用预先创建的 Secret, values 中不出现明文密码
