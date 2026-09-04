@@ -64,17 +64,23 @@ backup_logical() {
     log "备份文件: ${BACKUP_FILE}"
     
     # mysqldump 参数说明:
-    # --single-transaction: 一致性快照(InnoDB)
-    # --routines: 包含存储过程和函数
+    # --opt: 快速备份组合(--add-drop-table --add-locks --create-options --disable-keys --extended-insert --lock-tables --quick --set-charset)
+    # -E: --events 包含事件调度器
+    # -R: --routines 包含存储过程和函数
     # --triggers: 包含触发器
-    # --events: 包含事件调度器
+    # --single-transaction: 一致性快照(InnoDB),覆盖 --opt 的 --lock-tables
+    # --set-gtid-purged=OFF: 不导出 GTID 信息(避免主从冲突)
+    # --max_allowed_packet=2G: 支持大字段/BLOB
+    # --compress: 客户端-服务端传输压缩(网络备份优化)
     # --master-data=2: 记录binlog位置(注释形式)
     # --all-databases: 所有数据库
     mysqldump -h"${MYSQL_HOST}" -P"${MYSQL_PORT}" -u"${MYSQL_USER}" -p"${MYSQL_PASSWORD}" \
+        --opt \
+        -E -R --triggers \
         --single-transaction \
-        --routines \
-        --triggers \
-        --events \
+        --set-gtid-purged=OFF \
+        --max_allowed_packet=2G \
+        --compress \
         --master-data=2 \
         --all-databases \
         --default-character-set=utf8mb4 \
